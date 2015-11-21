@@ -10,13 +10,13 @@
     <!-- Bootstrap -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" integrity="sha512-dTfge/zgoMYpP7QbHy4gWMEGsbsdZeCXz7irItjcC3sPUFtf0kuFbDz/ixG7ArTxmDjLXDmezHubeNikyKGVyQ==" crossorigin="anonymous">
 
+    <!-- emoji -->
+    <link rel="stylesheet" href="//cdn.jsdelivr.net/emojione/1.5.2/assets/css/emojione.min.css" />
+
     <title>Hay Von Chat</title>
     <style>
         html,body{
             height: 100%
-        }
-        body {
-            padding-bottom: 100px;
         }
         #messages {
             list-style-type: none; margin: 0; padding: 0;
@@ -27,41 +27,104 @@
         #messages li:nth-child(odd) {
             background: #eee;
         }
+        #contentWrap, #nickError {
+            display: none;
+        }
+        #contentWrap {
+            padding-bottom: 50px;
+        }
     </style>
   </head>
   <body>
-    <div class="container">
-        <ul id="messages"></ul>
-    </div>
-
-
-    <nav class="navbar navbar-default navbar-fixed-bottom">
-        <form>
-            <div class="col-lg-12">
-                <div class="input-group">
-                    <input type="text" class="form-control input-sm" id="m" autocomplete="off">
+    <div id="nickWrap" class="form-group well col-lg-12">
+        <form id="setNick">
+            <div class="input-group">
+                <input type="text" class="form-control input-sm" id="nickName" maxlength="35" autocomplete="off" placeholder="Please enter a nickname"/>
                 <span class="input-group-btn">
-                    <button class="btn btn-sm btn-success" type="button">Send</button>
+                    <button class="btn btn-sm btn-success" type="submit">Go</button>
                 </span>
-                </div><!-- /input-group -->
-            </div><!-- /.col-lg-6 -->
+            </div><!-- /input-group -->
+            <span id="nickError" class="help-block"></span>
         </form>
-    </nav>
+    </div>
+    <div id="contentWrap" class="container">
+        <ul id="messages" class="list-group"></ul>
+        <nav class="navbar navbar-default navbar-fixed-bottom">
+            <form id="sendMessage">
+                <div class="col-lg-12">
+                    <div class="input-group">
+                        <input type="text" class="form-control input-sm" id="m" autocomplete="off">
+                        <span class="input-group-btn">
+                            <button class="btn btn-sm btn-success" type="submit">Send</button>
+                        </span>
+                    </div><!-- /input-group -->
+                </div><!-- /.col-lg-12 -->
+            </form>
+        </nav>
+    </div>
 
     <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
     <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
     <!-- Latest compiled and minified JavaScript -->
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js" integrity="sha512-K1qjQ+NcF2TYO/eI3M6v8EiNYZfA95pQumfvcVrTHtwQVDG+aHRqLi/ETn2uB+1JqwYqVG3LIvdm9lj6imS/pQ==" crossorigin="anonymous"></script>
+
+    <!-- emoji -->
+    <script src="//cdn.jsdelivr.net/emojione/1.5.2/lib/js/emojione.min.js"></script>
     <script>
       var socket = io();
-      $('form').submit(function(){
-        socket.emit('chat message', $('#m').val());
-        $('#m').val('');
-        return false;
+      $(document).ready(function () {
+          $('#sendMessage').submit(function(e){
+              e.preventDefault();
+              var message = $('#m').val();
+
+              if (message == '') {
+                  return false;
+              }
+              socket.emit('chat message', message);
+              $('#m').val('');
+              return false;
+          });
+          socket.on('chat message', function(data){
+              $('#messages').append('<li class="list-group-item"><label class="label label-info">'+data.username+'</label>&nbsp;&nbsp;<span>'+convertToEmo(data.msg)+'</span></li>');
+          });
+
+          $('#setNick').submit(function (e) {
+              e.preventDefault();
+              var nickWrap = $('#nickWrap');
+              var nickName = $('#nickName');
+              var nickError = $('#nickError');
+              nickError.slideUp();
+              nickWrap.removeClass('has-error');
+
+              if (nickName.val() != '') {
+                  //send to server
+                  socket.emit('new user', nickName.val(), function(data) {
+                      if (data) {
+                          $('#contentWrap').slideDown();
+                          nickWrap.slideUp();
+                      }
+                      else {
+                          nickWrap.addClass('has-error');
+                          nickError.html('The nickname is already taken.').slideDown();
+                      }
+                  });
+
+                  nickName.val('');
+              }
+              else {
+                  nickWrap.addClass('has-error');
+                  nickError.html('Please enter a nickname').slideDown();
+              }
+          });
+
+          socket.on('usernames', function (data) {
+
+          });
       });
-      socket.on('chat message', function(msg){
-        $('#messages').append($('<li>').text(msg));
-      });
+
+      function convertToEmo(input) {
+          return emojione.toImage(input);
+      }
     </script>
 
   </body>
